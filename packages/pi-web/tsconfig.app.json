@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": false,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./client/*"],
+      "@assistant-ui/react": ["./node_modules/@assistant-ui/react/dist/index.d.ts"],
+      "@assistant-ui/react-markdown": ["./node_modules/@assistant-ui/react-markdown/dist/index.d.ts"]
+    }
+  },
+  "include": ["client"]
+}
