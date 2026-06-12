@@ -295,6 +295,8 @@ textarea {
   animation: float 3s ease-in-out infinite;
 }
 
+
+
 /* Stagger children */
 .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
 .stagger-children > *:nth-child(2) { animation-delay: 60ms; }
@@ -379,13 +381,9 @@ textarea {
 }
 
 .pi-markdown pre {
+  /* pre is now wrapped by SyntaxHighlighter; keep as fallback */
   overflow-x: auto;
-  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
-  background: var(--bg-inset-deep);
-  padding: 1rem 1.25rem;
-  font-size: var(--text-2xs);
-  line-height: 1.8;
   position: relative;
 }
 
@@ -404,6 +402,36 @@ textarea {
   background: var(--bg-active);
   padding: 0.1em 0.4em;
   color: var(--color-accent-dim);
+}
+
+/* Inline typography */
+.pi-markdown strong,
+.pi-markdown b {
+  font-weight: var(--weight-semibold);
+  color: var(--color-foreground);
+}
+
+.pi-markdown em,
+.pi-markdown i {
+  font-style: italic;
+}
+
+.pi-markdown del,
+.pi-markdown s {
+  text-decoration: line-through;
+  color: var(--color-muted);
+}
+
+.pi-markdown kbd {
+  display: inline-block;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-default);
+  background: var(--bg-muted);
+  padding: 0.1em 0.4em;
+  font-size: 0.8em;
+  font-family: "SF Mono", "JetBrains Mono", "Fira Code", monospace;
+  color: var(--color-foreground-dim);
+  box-shadow: 0 1px 0 var(--border-default);
 }
 
 .pi-markdown blockquote {

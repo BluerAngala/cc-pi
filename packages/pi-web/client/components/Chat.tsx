@@ -6,10 +6,12 @@ import { Composer } from "./Composer";
 import { MessageItem } from "./MessageItem";
 import { ToolPanel } from "./ToolPanel";
 import { WelcomeScreen } from "./WelcomeScreen";
+import { DebugPanel } from "./DebugPanel";
 
 export function Chat() {
-  const { messages, sendMessage, stop, isLoading, reset } = useChat();
+  const { messages, sendMessage, stop, isLoading, reset, logs, clearLogs } = useChat();
   const [thinking, setThinking] = useState(false);
+  const [debugVisible, setDebugVisible] = useState(false);
   const { tools } = useTools();
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -59,6 +61,18 @@ export function Chat() {
 
         <div className="flex items-center gap-2">
           <ToolPanel tools={tools} />
+          <button
+            type="button"
+            onClick={() => setDebugVisible((v) => !v)}
+            className="rounded-lg px-2 py-1 text-xs transition-colors duration-[var(--duration-fast)]"
+            style={{
+              color: debugVisible ? "var(--color-accent)" : "var(--color-muted-dim)",
+              background: debugVisible ? "var(--color-accent-muted)" : undefined,
+            }}
+            title="调试日志"
+          >
+            🛠
+          </button>
           <button
             type="button"
             ref={copyBtnRef}
@@ -122,6 +136,13 @@ export function Chat() {
       </div>
 
       <Composer onSend={handleSend} onStop={stop} isLoading={isLoading} />
+
+      <DebugPanel
+        logs={logs}
+        onClear={clearLogs}
+        visible={debugVisible}
+        onToggle={() => setDebugVisible(false)}
+      />
     </div>
   );
 }

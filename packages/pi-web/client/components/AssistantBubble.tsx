@@ -1,17 +1,47 @@
 import { useCallback, useRef } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import type { Components } from "react-markdown";
+import type { Message } from "../hooks/useChat";
 
-function CopyBtn({ text }: { text: string }) {
+function formatElapsed(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  const s = (ms / 1000).toFixed(1);
+  if (ms < 60000) return `${s}s`;
+  const min = Math.floor(ms / 60000);
+  const sec = Math.floor((ms % 60000) / 1000);
+  return `${min}分${sec}秒`;
+}
+
+function CopyBtn({ message }: { message: Message }) {
   const btnRef = useRef<HTMLButtonElement>(null);
 
   const handleCopy = useCallback(() => {
+    const { content, elapsedMs, toolCalls, thinkingMs, streamingMs } = message;
+    let text = content;
+    if (elapsedMs !== undefined) {
+      const lines: string[] = [];
+      if (thinkingMs !== undefined && thinkingMs > 0) {
+        lines.push(`思考耗时: ${formatElapsed(thinkingMs)}`);
+      }
+      if (toolCalls && toolCalls.length > 0) {
+        lines.push(`工具调用: ${toolCalls.map((tc) => `${tc.label} ${formatElapsed(tc.durationMs)}`).join(", ")}`);
+      }
+      if (streamingMs !== undefined && streamingMs > 0) {
+        lines.push(`回答耗时: ${formatElapsed(streamingMs)}`);
+      }
+      lines.push(`总耗时: ${formatElapsed(elapsedMs)}`);
+      text += `\n\n---\n${lines.join("\n")}`;
+    }
     navigator.clipboard.writeText(text).catch(() => {});
     if (btnRef.current) {
       btnRef.current.textContent = "已复制";
       setTimeout(() => { btnRef.current!.textContent = "复制"; }, 1000);
     }
-  }, [text]);
+  }, [message]);
 
   return (
     <button
@@ -26,7 +56,69 @@ function CopyBtn({ text }: { text: string }) {
   );
 }
 
-export function AssistantBubble({ text }: { text: string }) {
+function CodeBlock({ className, children }: { className?: string; children?: React.ReactNode }) {
+  const match = /language-(\w+)/.exec(className || "");
+  const code = String(children).replace(/\n$/, "");
+  return (
+    <div className="code-block-wrapper group relative">
+      <SyntaxHighlighter
+        style={oneDark}
+        language={match ? match[1] : "text"}
+        PreTag="div"
+        customStyle={{
+          margin: 0,
+          borderRadius: "var(--radius-lg)",
+          padding: "1rem 1.25rem",
+          fontSize: "0.75rem",
+          lineHeight: "1.7",
+          background: "var(--bg-inset-deep)",
+        }}
+      >
+        {code}
+      </SyntaxHighlighter>
+      <button
+        type="button"
+        onClick={() => navigator.clipboard.writeText(code).catch(() => {})}
+        className="copy-btn absolute right-2 top-2 rounded px-1.5 py-0.5 text-[10px] opacity-0 transition-opacity duration-[var(--duration-fast)]"
+        style={{ color: "var(--color-muted-dim)", background: "var(--bg-muted)" }}
+      >
+        复制代码
+      </button>
+    </div>
+  );
+}
+
+const components: Components = {
+  code({ className, children, ...props }) {
+    const isBlock = className?.startsWith("language-");
+    if (isBlock) {
+      return <CodeBlock className={className} children={children} />;
+    }
+    return (
+      <code
+        className={className}
+        style={{
+          borderRadius: "var(--radius-sm)",
+          background: "var(--bg-active)",
+          padding: "0.1em 0.4em",
+          color: "var(--color-accent-dim)",
+          fontSize: "0.875em",
+          fontFamily: '"SF Mono", "JetBrains Mono", "Fira Code", monospace',
+        }}
+        {...props}
+      >
+        {children}
+      </code>
+    );
+  },
+  pre({ children }) {
+    return <>{children}</>;
+  },
+};
+
+export function AssistantBubble({ message }: { message: Message }) {
+  const { content, elapsedMs, toolCalls, thinkingMs, streamingMs } = message;
+
   return (
     <div className="group flex gap-3 animate-slide-up">
       <div
@@ -44,9 +136,15 @@ export function AssistantBubble({ text }: { text: string }) {
           className="rounded-2xl rounded-tl-sm px-4 py-2.5 shadow-xs"
           style={{ background: "var(--glass-bg)", border: "1px solid var(--glass-border)" }}
         >
-          {text ? (
+          {content ? (
             <div className="pi-markdown text-sm leading-relaxed" style={{ color: "var(--color-foreground)" }}>
-              <Markdown remarkPlugins={[remarkGfm]}>{text}</Markdown>
+              <Markdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw]}
+                components={components}
+              >
+                {content}
+              </Markdown>
             </div>
           ) : (
             <div className="flex items-center gap-1 py-0.5">
@@ -55,9 +153,38 @@ export function AssistantBubble({ text }: { text: string }) {
               </span>
             </div>
           )}
+          {/* Footer: phase timings (shows immediately on send) */}
+          {elapsedMs !== undefined && (
+            <div
+              className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t pt-2 text-[10px]"
+              style={{ borderColor: "var(--border-subtle)", color: "var(--color-muted-dim)" }}
+            >
+              {thinkingMs !== undefined && thinkingMs > 0 && (
+                <span className="inline-flex items-center gap-1">
+                  💭 思考
+                  <span style={{ color: "var(--color-muted)" }}>{formatElapsed(thinkingMs)}</span>
+                </span>
+              )}
+              {toolCalls && toolCalls.length > 0 && toolCalls.map((tc, i) => (
+                <span key={i} className="inline-flex items-center gap-1">
+                  🔧 {tc.label}
+                  <span style={{ color: "var(--color-muted)" }}>{formatElapsed(tc.durationMs)}</span>
+                </span>
+              ))}
+              {streamingMs !== undefined && streamingMs > 0 && (
+                <span className="inline-flex items-center gap-1">
+                  ✍️ 回答
+                  <span style={{ color: "var(--color-muted)" }}>{formatElapsed(streamingMs)}</span>
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1 ml-auto">
+                ⏱️ 总用时 {formatElapsed(elapsedMs)}
+              </span>
+            </div>
+          )}
         </div>
         <div className="flex justify-end pt-0.5 pr-1">
-          {text && <CopyBtn text={text} />}
+          {content && <CopyBtn message={message} />}
         </div>
       </div>
     </div>

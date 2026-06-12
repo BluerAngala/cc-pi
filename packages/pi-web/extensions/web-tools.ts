@@ -48,46 +48,58 @@ const searchWebTool = defineTool({
   }),
   execute: async (_toolCallId, params) => {
     try {
-      const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(params.query)}`;
+      const url = `https://www.bing.com/search?q=${encodeURIComponent(params.query)}&count=10`;
       const response = await fetch(url, {
-        headers: { "User-Agent": "Mozilla/5.0" },
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml",
+          "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+        },
         signal: AbortSignal.timeout(15000),
       });
       const html = await response.text();
 
       const results: string[] = [];
-      const linkRegex = /<a[^>]+class="result__a"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
-      const snippetRegex = /<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/a>/gi;
-
+      // Each result is in <li class="b_algo"> ... </li>
+      const algoRegex = /<li[^>]*class="b_algo"[^>]*>([\s\S]*?)<\/li>/gi;
       let match: RegExpExecArray | null;
-      const links: string[] = [];
-      const titles: string[] = [];
 
-      while ((match = linkRegex.exec(html)) !== null && links.length < 5) {
-        const href = match[1].replace(/\/\/duckduckgo\.com\/l\/\?uddg=/, "");
-        const decoded = decodeURIComponent(href);
-        links.push(decoded.includes("http") ? decoded : match[1]);
-        titles.push(match[2].replace(/<[^>]+>/g, "").trim());
-      }
+      while ((match = algoRegex.exec(html)) !== null && results.length < 8) {
+        const item = match[1];
 
-      const snippets: string[] = [];
-      while ((match = snippetRegex.exec(html)) !== null && snippets.length < 5) {
-        snippets.push(match[1].replace(/<[^>]+>/g, "").trim());
-      }
-
-      for (let i = 0; i < Math.min(links.length, 5); i++) {
-        results.push(
-          `${i + 1}. ${titles[i] || "(无标题)"}\n   ${links[i] || ""}\n   ${snippets[i] || ""}`,
+        // Extract title + URL from <h2><a href="...">Title</a></h2>
+        const titleMatch = item.match(
+          /<h2[^>]*>[\s\S]*?<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/i,
         );
+        // Extract snippet from <p class="b_lineclamp2">...</p>
+        const snippetMatch = item.match(
+          /<p[^>]*class="b_lineclamp2"[^>]*>([\s\S]*?)<\/p>/i,
+        );
+        // Extract display URL from <cite>...</cite>
+        const citeMatch = item.match(/<cite>([^<]*)<\/cite>/i);
+
+        if (!titleMatch) continue;
+
+        const title = titleMatch[2].replace(/<[^>]+>/g, "").trim();
+        const link = titleMatch[1];
+        const snippet = snippetMatch
+          ? snippetMatch[1].replace(/<[^>]+>/g, "").trim()
+          : "";
+        const cite = citeMatch ? citeMatch[1].trim() : link;
+
+        if (!title || !link) continue;
+
+        results.push(`${results.length + 1}. ${title}\n   ${cite}\n   ${snippet}`);
       }
+
+      const text =
+        results.length > 0
+          ? `搜索结果（${params.query}）：\n\n${results.join("\n\n")}`
+          : `未找到关于"${params.query}"的搜索结果。`;
 
       return {
-        content: [{
-          type: "text",
-          text: results.length > 0
-            ? `搜索结果（${params.query}）：\n\n${results.join("\n\n")}`
-            : `未找到关于"${params.query}"的搜索结果。`,
-        }],
+        content: [{ type: "text", text }],
         details: {},
       };
     } catch (error) {
