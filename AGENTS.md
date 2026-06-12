@@ -157,6 +157,12 @@ Attribution:
 
 5. **If CI publish fails**: inspect the failed `publish-npm` job. The publish helper is idempotent and skips package versions already present on npm, so rerun the tag workflow after fixing CI or transient npm issues. Do not rerun `npm run release:patch` or `npm run release:minor` for the same version.
 
+## Packages
+
+### pi-web (`packages/pi-web/`)
+
+When working on `packages/pi-web/`, additionally apply the package-specific rules from `packages/pi-web/.pi/AGENTS.md`. Those rules supplement (not override) the global rules above.
+
 ## User Override
 
 If the user's instructions conflict with any rule in this document, ask for explicit confirmation before overriding. Only then execute their instructions.

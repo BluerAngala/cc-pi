@@ -11,10 +11,7 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "types": ["node"],
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./client/*"]
-    }
+    "baseUrl": "."
   },
-  "include": ["server/**/*.ts"]
+  "include": ["server/**/*.ts", "extensions/**/*.ts"]
 }

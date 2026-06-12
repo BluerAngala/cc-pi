@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 /* ─── Design Token System ─── */
 
 :root {
@@ -253,6 +255,10 @@ textarea {
 
 /* ─── Animation Utilities ─── */
 
+.animate-pulse-dot {
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+
 .animate-fade-in {
   animation: fade-in var(--duration-normal) var(--ease-out) both;
 }
@@ -477,6 +483,17 @@ textarea {
 
 ::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* ─── Copy Button ─── */
+
+.group:hover .copy-btn,
+.group .copy-btn:focus-visible {
+  opacity: 1;
+}
+
+.copy-btn:hover {
+  background: var(--bg-hover);
 }
 
 /* ─── Focus Ring ─── */

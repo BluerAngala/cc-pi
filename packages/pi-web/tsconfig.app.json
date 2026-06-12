@@ -14,9 +14,7 @@
     "strict": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./client/*"],
-      "@assistant-ui/react": ["./node_modules/@assistant-ui/react/dist/index.d.ts"],
-      "@assistant-ui/react-markdown": ["./node_modules/@assistant-ui/react-markdown/dist/index.d.ts"]
+      "@/*": ["./client/*"]
     }
   },
   "include": ["client"]
