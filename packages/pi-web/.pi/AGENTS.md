@@ -28,6 +28,8 @@ client/
 ├── main.tsx         ← 入口
 ├── App.tsx          ← 根组件
 ├── styles.css       ← 全局样式 + 设计 Token
+├── lib/
+│   └── logger.ts    ← 调试日志（debug 包 + ring buffer）
 ├── hooks/
 │   ├── useChat.ts          ← SSE 流式对话
 │   ├── useTools.ts         ← 获取工具列表
@@ -37,7 +39,8 @@ client/
     ├── Composer.tsx        ← 输入框
     ├── MessageItem.tsx     ← 消息路由
     ├── UserBubble.tsx      ← 用户气泡
-    ├── AssistantBubble.tsx ← AI 气泡（Markdown）
+    ├── AssistantBubble.tsx ← AI 气泡（Markdown + 语法高亮）
+    ├── DebugPanel.tsx      ← 可拖拽调试日志面板
     ├── ToolPanel.tsx       ← 工具弹窗（Header）
     └── WelcomeScreen.tsx   ← 欢迎页
 ```
@@ -62,7 +65,37 @@ client/
 
 ## 约定
 
-- 用中文回复
-- 回答友好简洁
+- 用中文回复，回答友好简洁
 - 不随意删功能，先问用户
-- 对话复制格式：`User:\n内容\n\n---\n\nAssistant:\n内容`
+
+### 日志
+
+- 统一走 `client/lib/logger.ts`，不要用 `console.log` 或 `useState` 存日志
+- `chatLog()` / `toolLog()` 输出到浏览器 Console（`localStorage.debug='pi:*'` 启用）
+- `logEntry()` 写入 ring buffer 供 DebugPanel 消费
+
+### SSE 事件
+
+| 事件 | 处理 |
+|------|------|
+| `tool_start` | 气泡显示 "🔍 正在{label}..." |
+| `tool_end` | 记录耗时 |
+| `delta` | 流式追加文本（首个 delta 替换工具状态文字） |
+
+### Markdown
+
+`react-markdown` + `remark-gfm` + `rehype-raw`，代码块用 `react-syntax-highlighter`（oneDark）。
+`.pi-markdown` 下要有 `strong`、`em`、`del`、`kbd` 的显式样式规则。
+
+### 消息计时
+
+`Message` 接口字段：`elapsedMs`（总耗时）、`thinkingMs`（思考）、`streamingMs`（回答）、`toolCalls`（工具明细）。
+Bubble footer 实时显示 `💭 思考 Xs  🔧 工具 Xs  ✍️ 回答 Xs  ⏱️ 总用时 Xs`。
+
+### 复制
+
+对话级（头部）和单条（气泡内）复制都包含计时信息，格式一致。
+
+### 超时
+
+客户端 3 分钟超时，`AbortController` 实现。超时后气泡显示原因，已有工具耗时保留。

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { LogEntry } from "../hooks/useChat";
+import { useLogBuffer } from "../lib/logger.js";
+import type { LogEntry } from "../lib/logger.js";
 
 function formatElapsed(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
@@ -23,16 +24,15 @@ const typeStyles: Record<LogEntry["type"], { bg: string; dot: string }> = {
 };
 
 export function DebugPanel({
-  logs,
   onClear,
   visible,
   onToggle,
 }: {
-  logs: LogEntry[];
   onClear: () => void;
   visible: boolean;
   onToggle: () => void;
 }) {
+  const logs = useLogBuffer();
   const listRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ x: 0, y: 60 });
   const [dragging, setDragging] = useState(false);
@@ -98,6 +98,21 @@ export function DebugPanel({
         <div className="flex items-center gap-2">
           <button
             type="button"
+            onClick={() => {
+              const text = logs.map((e) =>
+                `[${formatElapsed(e.time)}] ${e.type}: ${e.label}${e.detail ? ` - ${e.detail}` : ""}`
+              ).join("\n");
+              navigator.clipboard.writeText(text).catch(() => {});
+            }}
+            className="rounded px-1.5 py-0.5 text-[10px] transition-colors"
+            style={{ color: "var(--color-muted-dim)" }}
+            onMouseOver={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
+            onMouseOut={(e) => (e.currentTarget.style.background = "transparent")}
+          >
+            复制
+          </button>
+          <button
+            type="button"
             onClick={onClear}
             className="rounded px-1.5 py-0.5 text-[10px] transition-colors"
             style={{ color: "var(--color-muted-dim)" }}
@@ -151,12 +166,16 @@ export function DebugPanel({
                 style={{ background: style.dot }}
               />
               {/* Content */}
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1" style={{ minWidth: 0 }}>
                 <div style={{ color: "var(--color-foreground)" }}>{entry.label}</div>
                 {entry.detail && (
                   <div
                     className="truncate"
-                    style={{ color: "var(--color-muted)" }}
+                    style={{
+                      color: entry.type === "tool_start" ? "var(--color-accent-dim)" : "var(--color-muted)",
+                      fontFamily: '"SF Mono", "JetBrains Mono", monospace',
+                      fontSize: 10,
+                    }}
                     title={entry.detail}
                   >
                     {entry.detail}

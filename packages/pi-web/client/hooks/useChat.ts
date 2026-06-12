@@ -14,13 +14,7 @@ export interface Message {
   streamingMs?: number;        // 回答耗时（流式输出时长）
 }
 
-export interface LogEntry {
-  id: number;
-  time: number;                // ms since start of current request
-  type: "send" | "thinking" | "tool_start" | "tool_end" | "delta" | "done" | "error" | "timeout" | "abort";
-  label: string;
-  detail?: string;
-}
+import { logEntry, chatLog, toolLog, setStartTime } from "../lib/logger.js";
 
 const toolLabels: Record<string, string> = {
   search_web: "搜索互联网",
@@ -38,21 +32,10 @@ function formatElapsed(ms: number): string {
   return `${min}分${sec}秒`;
 }
 
-let logIdCounter = 0;
-
 export function useChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
   const abortRef = useRef<AbortController | null>(null);
-
-  const addLog = useCallback((type: LogEntry["type"], label: string, detail?: string) => {
-    const elapsed = startTimeRef.current > 0
-      ? Date.now() - startTimeRef.current
-      : 0;
-    const entry: LogEntry = { id: ++logIdCounter, time: elapsed, type, label, detail };
-    setLogs((prev) => [...prev, entry]);
-  }, []);
 
   // Timeout
   const timeoutIdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -114,11 +97,7 @@ export function useChat() {
     }
     bufferRef.current = "";
     setMessages([]);
-    setLogs([]);
-  }, []);
-
-  const clearLogs = useCallback(() => {
-    setLogs([]);
+    resetBuffer();
   }, []);
 
   const sendMessage = useCallback(async (text: string, thinking = false) => {
@@ -130,7 +109,9 @@ export function useChat() {
     firstDeltaTimeRef.current = 0;
     toolCallsRef.current = [];
     toolStartTimeRef.current = new Map();
-    addLog("send", "用户发送消息", text.slice(0, 80) + (text.length > 80 ? "..." : ""));
+    chatLog("用户发送消息: %s", text.slice(0, 80) + (text.length > 80 ? "..." : ""));
+    logEntry("send", "用户发送消息", text.slice(0, 80) + (text.length > 80 ? "..." : ""));
+    setStartTime();
 
     // Place user and empty assistant messages (elapsedMs: 0 triggers live timer UI)
     setMessages((prev) => [
@@ -207,7 +188,8 @@ export function useChat() {
             if (firstEventTimeRef.current === 0) {
               firstEventTimeRef.current = Date.now();
             }
-            addLog("thinking", "模型思考中", (event.text || "").slice(0, 60));
+            chatLog("模型思考: %s", (event.text || "").slice(0, 60));
+            logEntry("thinking", "模型思考中", (event.text || "").slice(0, 60));
             continue;
           }
 
@@ -217,7 +199,9 @@ export function useChat() {
             }
             toolStartTimeRef.current.set(event.name as string, Date.now());
             const label = toolLabels[event.name as string] || event.name as string;
-            addLog("tool_start", `工具发起: ${label}`, event.name as string);
+            const argInfo = (event.args as string) || "";
+            toolLog("工具发起: %s | %s", label, argInfo);
+            logEntry("tool_start", `工具发起: ${label}`, argInfo);
             pendingToolReplaceRef.current = true;
             // Cancel any pending flush so it doesn't append to the status text
             if (rafIdRef.current !== null) {
@@ -243,7 +227,9 @@ export function useChat() {
               const label = toolLabels[toolName] || toolName;
               toolCallsRef.current.push({ label, durationMs: duration });
               toolStartTimeRef.current.delete(toolName);
-              addLog("tool_end", `工具完成: ${label}`, `${formatElapsed(duration)}${event.isError ? " (失败)" : ""}`);
+              const resultInfo = (event.result as string) || "";
+              toolLog("工具完成: %s (%s)%s | %s", label, formatElapsed(duration), event.isError ? " 失败" : "", resultInfo.slice(0, 80));
+              logEntry("tool_end", `工具完成: ${label}`, `${formatElapsed(duration)}${event.isError ? " (失败)" : ""}${resultInfo ? ` | ${resultInfo}` : ""}`);
             }
           }
 
@@ -277,7 +263,9 @@ export function useChat() {
       // Stream completed — set tool calls and phase timings
       const now = Date.now();
       const elapsed = now - startTimeRef.current;
-      addLog("done", "回答完成", `总用时 ${formatElapsed(elapsed)}`);
+      chatLog("回答完成, 总用时 %s", formatElapsed(elapsed));
+      logEntry("done", "回答完成", `总用时 ${formatElapsed(elapsed)}`);
+
       const streamingMs = firstDeltaTimeRef.current > 0
         ? now - firstDeltaTimeRef.current
         : 0;
@@ -302,7 +290,8 @@ export function useChat() {
       if (error instanceof DOMException && error.name === "AbortError") {
         if (timeoutReachedRef.current) {
           // 3-minute timeout
-          addLog("timeout", "回答超时（3分钟）", `已用时 ${formatElapsed(Date.now() - startTimeRef.current)}`);
+          chatLog("超时! 已用时 %s", formatElapsed(Date.now() - startTimeRef.current));
+          logEntry("timeout", "回答超时（3分钟）", `已用时 ${formatElapsed(Date.now() - startTimeRef.current)}`);
           flushBuffer();
           const now = Date.now();
           const elapsed = now - startTimeRef.current;
@@ -327,12 +316,14 @@ export function useChat() {
           });
         }
         if (!timeoutReachedRef.current) {
-          addLog("abort", "用户中止", `已用时 ${formatElapsed(Date.now() - startTimeRef.current)}`);
+          chatLog("用户中止, 已用时 %s", formatElapsed(Date.now() - startTimeRef.current));
+          logEntry("abort", "用户中止", `已用时 ${formatElapsed(Date.now() - startTimeRef.current)}`);
         }
         // For both timeout and user-initiated abort, skip generic error
       } else {
         flushBuffer();
-        addLog("error", "请求失败", String(error));
+        chatLog("请求失败: %s", String(error));
+        logEntry("error", "请求失败", String(error));
         setMessages((prev) => {
           const updated = [...prev];
           const last = updated[updated.length - 1];
@@ -357,5 +348,5 @@ export function useChat() {
     }
   }, [scheduleFlush, flushBuffer]);
 
-  return { messages, sendMessage, stop, isLoading, reset, logs, clearLogs };
+  return { messages, sendMessage, stop, isLoading, reset };
 }

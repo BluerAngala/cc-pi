@@ -165,12 +165,15 @@ export function AssistantBubble({ message }: { message: Message }) {
                   <span style={{ color: "var(--color-muted)" }}>{formatElapsed(thinkingMs)}</span>
                 </span>
               )}
-              {toolCalls && toolCalls.length > 0 && toolCalls.map((tc, i) => (
-                <span key={i} className="inline-flex items-center gap-1">
-                  🔧 {tc.label}
-                  <span style={{ color: "var(--color-muted)" }}>{formatElapsed(tc.durationMs)}</span>
-                </span>
-              ))}
+              {toolCalls && toolCalls.length > 0 && (() => {
+                const totalToolMs = toolCalls.reduce((s, t) => s + t.durationMs, 0);
+                return (
+                  <span className="inline-flex items-center gap-1">
+                    🔧 工具 {toolCalls.length} 次
+                    <span style={{ color: "var(--color-muted)" }}>{formatElapsed(totalToolMs)}</span>
+                  </span>
+                );
+              })()}
               {streamingMs !== undefined && streamingMs > 0 && (
                 <span className="inline-flex items-center gap-1">
                   ✍️ 回答

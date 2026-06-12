@@ -20,16 +20,11 @@ async function createPiSession() {
     noContextFiles: true,
     extensionFactories: [webToolsExtension],
     systemPromptOverride: () =>
-      "你是一个 AI 助手，用中文回答。\n\n" +
-      "你有以下工具可用：\n" +
-      "- read_url(url)：读取一个网页并返回纯文本内容\n" +
-      "- search_web(query)：搜索互联网获取最新信息\n\n" +
-      "规则：\n" +
-      "1. 回答友好简洁，不要啰嗦。\n" +
-      "2. 需要最新信息或你不知道的事情时，先 search_web 搜索。\n" +
-      "3. 用户提供网页地址时，用 read_url 读取内容。\n" +
-      "4. 不知道的事情就说不知道，不要编造。\n" +
-      "5. 你只能使用上面列出的两个工具。",
+      [
+        "你是一个 AI 助手，用中文回答。工具的描述写了使用原则，调用前先读。",
+        "连续 2 次搜索返回一样的结果就直接用已有信息回答。",
+        "回答格式：每条信息包含标题、摘要、原文链接，类似搜索引擎结果页。",
+      ].join("\n"),
   });
   await loader.reload();
 

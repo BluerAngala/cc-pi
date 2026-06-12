@@ -7,11 +7,12 @@ import { MessageItem } from "./MessageItem";
 import { ToolPanel } from "./ToolPanel";
 import { WelcomeScreen } from "./WelcomeScreen";
 import { DebugPanel } from "./DebugPanel";
+import { resetBuffer } from "../lib/logger.js";
 
 export function Chat() {
-  const { messages, sendMessage, stop, isLoading, reset, logs, clearLogs } = useChat();
+  const { messages, sendMessage, stop, isLoading, reset } = useChat();
   const [thinking, setThinking] = useState(false);
-  const [debugVisible, setDebugVisible] = useState(false);
+  const [debugVisible, setDebugVisible] = useState(true);
   const { tools } = useTools();
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -138,9 +139,8 @@ export function Chat() {
       <Composer onSend={handleSend} onStop={stop} isLoading={isLoading} />
 
       <DebugPanel
-        logs={logs}
-        onClear={clearLogs}
         visible={debugVisible}
+        onClear={resetBuffer}
         onToggle={() => setDebugVisible(false)}
       />
     </div>

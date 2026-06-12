@@ -14,7 +14,6 @@ router.post("/", async (req, res) => {
 
   const session = await getSession();
 
-  // Apply thinking preference before each prompt
   session.setThinkingLevel(thinking ? "low" : "off");
 
   res.writeHead(200, {
@@ -40,10 +39,23 @@ router.post("/", async (req, res) => {
     }
     if (event.type === "tool_execution_start") {
       batcher.done();
-      send({ type: "tool_start", name: event.toolName });
+      const args = event.args ? JSON.stringify(event.args).slice(0, 200) : undefined;
+      send({ type: "tool_start", name: event.toolName, args });
     }
     if (event.type === "tool_execution_end") {
-      send({ type: "tool_end", name: event.toolName, error: event.isError });
+      // Extract readable text from tool result (nested in content[0].text)
+      let resultPreview: string | undefined;
+      if (event.result && typeof event.result === "object") {
+        const content = (event.result as Record<string, unknown>).content;
+        if (Array.isArray(content) && content.length > 0) {
+          const first = content[0] as Record<string, unknown>;
+          resultPreview = typeof first.text === "string" ? first.text.slice(0, 500) : undefined;
+        }
+      }
+      if (!resultPreview && typeof event.result === "string") {
+        resultPreview = event.result.slice(0, 500);
+      }
+      send({ type: "tool_end", name: event.toolName, error: event.isError, result: resultPreview });
     }
   });
 

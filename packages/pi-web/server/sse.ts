@@ -1,13 +1,15 @@
 /**
- * Batches text deltas from the agent and flushes at most once per ~50ms.
- * Avoids flooding the client with single-character SSE events.
+ * Batches text deltas from the agent.
+ * First flush fires after 16ms (1 frame), subsequent flushes every 48ms.
  */
 export function createSseBatcher(send: (data: Record<string, unknown>) => void) {
   let textBuffer = "";
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let first = true;
 
   const flush = () => {
     timer = null;
+    first = false;
     if (!textBuffer) return;
     send({ type: "delta", text: textBuffer });
     textBuffer = "";
@@ -16,7 +18,7 @@ export function createSseBatcher(send: (data: Record<string, unknown>) => void) 
   const append = (delta: string) => {
     textBuffer += delta;
     if (!timer) {
-      timer = setTimeout(flush, 50);
+      timer = setTimeout(flush, first ? 16 : 48);
     }
   };
 
