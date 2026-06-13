@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { toolDefs } from "../../extensions/tool-defs.js";
+import { toolDefs } from "../../extensions/tool-defs.ts";
 
 const router = Router();
 

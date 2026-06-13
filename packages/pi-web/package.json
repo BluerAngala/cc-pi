@@ -8,7 +8,9 @@
     "dev:client": "vite",
     "dev:server": "tsx watch server/index.ts",
     "build": "vite build",
-    "preview": "tsx server/index.ts"
+    "preview": "tsx server/index.ts",
+    "typecheck": "tsgo --noEmit -p tsconfig.app.json && tsgo --noEmit -p tsconfig.server.json",
+    "test": "vitest --run"
   },
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.79.1",
@@ -25,16 +27,21 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.1.6",
+    "@testing-library/react": "16.3.0",
     "@types/express": "5.0.6",
     "@types/node": "22.19.19",
+    "@types/react-syntax-highlighter": "15.5.13",
     "@types/react": "19.1.2",
     "@types/react-dom": "19.1.2",
     "@vitejs/plugin-react": "6.0.2",
     "concurrently": "10.0.3",
+    "fake-indexeddb": "6.0.0",
+    "happy-dom": "15.11.7",
     "postcss": "8.5.6",
     "tailwindcss": "4.1.6",
     "tsx": "4.22.1",
     "typescript": "5.9.3",
-    "vite": "8.0.16"
+    "vite": "8.0.16",
+    "vitest": "3.2.4"
   }
 }

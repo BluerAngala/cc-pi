@@ -1,15 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLogBuffer } from "../lib/logger.js";
 import type { LogEntry } from "../lib/logger.js";
-
-function formatElapsed(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  const s = (ms / 1000).toFixed(1);
-  if (ms < 60000) return `${s}s`;
-  const min = Math.floor(ms / 60000);
-  const sec = Math.floor((ms % 60000) / 1000);
-  return `${min}分${sec}秒`;
-}
+import { formatElapsed } from "../lib/format.js";
 
 const typeStyles: Record<LogEntry["type"], { bg: string; dot: string }> = {
   send:    { bg: "rgba(96,165,250,0.08)", dot: "#60a5fa" },

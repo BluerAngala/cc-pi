@@ -1,9 +1,9 @@
 import express from "express";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { PI_WEB_PORT } from "./config.js";
-import chatRouter from "./routes/chat.js";
-import toolsRouter from "./routes/tools.js";
+import { PI_WEB_PORT } from "./config.ts";
+import chatRouter from "./routes/chat.ts";
+import toolsRouter from "./routes/tools.ts";
 
 const app = express();
 

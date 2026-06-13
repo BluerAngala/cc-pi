@@ -5,55 +5,32 @@ import rehypeRaw from "rehype-raw";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import type { Components } from "react-markdown";
-import type { Message } from "../hooks/useChat";
-
-function formatElapsed(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  const s = (ms / 1000).toFixed(1);
-  if (ms < 60000) return `${s}s`;
-  const min = Math.floor(ms / 60000);
-  const sec = Math.floor((ms % 60000) / 1000);
-  return `${min}分${sec}秒`;
-}
+import { formatElapsed, formatMessageForCopy, type Message } from "../lib/format";
 
 function CopyBtn({ message }: { message: Message }) {
-  const btnRef = useRef<HTMLButtonElement>(null);
+	const btnRef = useRef<HTMLButtonElement>(null);
 
-  const handleCopy = useCallback(() => {
-    const { content, elapsedMs, toolCalls, thinkingMs, streamingMs } = message;
-    let text = content;
-    if (elapsedMs !== undefined) {
-      const lines: string[] = [];
-      if (thinkingMs !== undefined && thinkingMs > 0) {
-        lines.push(`思考耗时: ${formatElapsed(thinkingMs)}`);
-      }
-      if (toolCalls && toolCalls.length > 0) {
-        lines.push(`工具调用: ${toolCalls.map((tc) => `${tc.label} ${formatElapsed(tc.durationMs)}`).join(", ")}`);
-      }
-      if (streamingMs !== undefined && streamingMs > 0) {
-        lines.push(`回答耗时: ${formatElapsed(streamingMs)}`);
-      }
-      lines.push(`总耗时: ${formatElapsed(elapsedMs)}`);
-      text += `\n\n---\n${lines.join("\n")}`;
-    }
-    navigator.clipboard.writeText(text).catch(() => {});
-    if (btnRef.current) {
-      btnRef.current.textContent = "已复制";
-      setTimeout(() => { btnRef.current!.textContent = "复制"; }, 1000);
-    }
-  }, [message]);
+	const handleCopy = useCallback(() => {
+		navigator.clipboard.writeText(formatMessageForCopy(message)).catch(() => {});
+		if (btnRef.current) {
+			btnRef.current.textContent = "已复制";
+			setTimeout(() => {
+				if (btnRef.current) btnRef.current.textContent = "复制";
+			}, 1000);
+		}
+	}, [message]);
 
-  return (
-    <button
-      ref={btnRef}
-      type="button"
-      onClick={handleCopy}
-      className="copy-btn rounded px-1.5 py-0.5 text-[10px] opacity-0 transition-opacity duration-[var(--duration-fast)]"
-      style={{ color: "var(--color-muted-dim)" }}
-    >
-      复制
-    </button>
-  );
+	return (
+		<button
+			ref={btnRef}
+			type="button"
+			onClick={handleCopy}
+			className="copy-btn rounded px-1.5 py-0.5 text-[10px] opacity-0 transition-opacity duration-[var(--duration-fast)]"
+			style={{ color: "var(--color-muted-dim)" }}
+		>
+			复制
+		</button>
+	);
 }
 
 function CodeBlock({ className, children }: { className?: string; children?: React.ReactNode }) {
