@@ -3,7 +3,9 @@ import {
 	formatElapsed,
 	formatMessageForCopy,
 	formatMessagesForCopy,
+	linkifyCitations,
 	type Message,
+	type Source,
 } from "./format";
 
 describe("formatElapsed", () => {
@@ -80,5 +82,61 @@ describe("formatMessagesForCopy", () => {
 
 	it("returns empty string for empty list", () => {
 		expect(formatMessagesForCopy([])).toBe("");
+	});
+
+	it("includes sources in copy output", () => {
+		const sources: Source[] = [
+			{ title: "A", url: "https://a.com" },
+			{ title: "B", url: "https://b.com", cite: "B cite" },
+		];
+		const out = formatMessageForCopy({
+			role: "assistant",
+			content: "fact [1] and [2]",
+			elapsedMs: 1000,
+			sources,
+		});
+		expect(out).toContain("来源:");
+		expect(out).toContain("1. A");
+		expect(out).toContain("https://a.com");
+		expect(out).toContain("2. B");
+		expect(out).toContain("(B cite)");
+	});
+});
+
+describe("linkifyCitations", () => {
+	const sources: Source[] = [
+		{ title: "First", url: "https://a.com/x" },
+		{ title: "Second", url: "https://b.com/y" },
+	];
+
+	it("replaces [N] with markdown links", () => {
+		expect(linkifyCitations("see [1] and [2]", sources)).toBe(
+			"see [1](https://a.com/x) and [2](https://b.com/y)",
+		);
+	});
+
+	it("leaves [N] alone when no sources", () => {
+		expect(linkifyCitations("see [1]", undefined)).toBe("see [1]");
+	});
+
+	it("leaves out-of-range [N] alone", () => {
+		expect(linkifyCitations("see [3] and [1]", sources)).toBe(
+			"see [3] and [1](https://a.com/x)",
+		);
+	});
+
+	it("does not double-link existing [N](url) syntax", () => {
+		expect(linkifyCitations("see [1](https://manual.com)", sources)).toBe(
+			"see [1](https://manual.com)",
+		);
+	});
+
+	it("handles [10] when only 3 sources", () => {
+		const three: Source[] = [
+			{ title: "a", url: "u1" },
+			{ title: "b", url: "u2" },
+			{ title: "c", url: "u3" },
+		];
+		expect(linkifyCitations("[2] ok [4]", three)).toBe("[2](u2) ok [4]");
 	});
 });

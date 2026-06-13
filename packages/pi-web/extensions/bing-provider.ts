@@ -22,7 +22,10 @@ function normalizeUrl(link: string): string {
 
 export const bingSearchProvider: SearchProvider = {
 	async search(query: string, signal: AbortSignal) {
-		const url = `https://www.bing.com/search?q=${encodeURIComponent(query)}&count=15`;
+		// cn.bing.com returns more relevant results for Chinese queries; appending
+		// today's date anchors time-sensitive queries ("今天新闻") to the actual day.
+		const today = new Date().toISOString().slice(0, 10);
+		const url = `https://cn.bing.com/search?q=${encodeURIComponent(`${query} ${today}`)}&count=15&setlang=zh-Hans`;
 		const response = await fetch(url, {
 			headers: {
 				"User-Agent":

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { readSseStream } from "../lib/sse";
 import { chatLog, logEntry, resetBuffer, setStartTime, toolLog } from "../lib/logger";
 import { appendMessage, getMessages } from "../lib/db";
-import type { Message, ToolCall } from "../lib/format";
+import type { Message, Source, ToolCall } from "../lib/format";
 import { formatElapsed } from "../lib/format";
 
 export type { Message, ToolCall };
@@ -249,6 +249,26 @@ export function useChat({ conversationId, onTouch }: UseChatOptions) {
 								`工具完成: ${label}`,
 								`${formatElapsed(duration)}${event.isError ? " (失败)" : ""}${resultInfo ? ` | ${resultInfo}` : ""}`,
 							);
+						}
+						const incomingSources = Array.isArray(event.sources) ? (event.sources as Source[]) : null;
+						if (incomingSources && incomingSources.length > 0) {
+							setMessages((prev) => {
+								const updated = [...prev];
+								const last = updated[updated.length - 1];
+								if (last?.role === "assistant") {
+									const existing = last.sources ?? [];
+									const seen = new Set(existing.map((s) => s.url));
+									const merged = [...existing];
+									for (const s of incomingSources) {
+										if (s.url && !seen.has(s.url)) {
+											merged.push(s);
+											seen.add(s.url);
+										}
+									}
+									updated[updated.length - 1] = { ...last, sources: merged };
+								}
+								return updated;
+							});
 						}
 						return;
 					}

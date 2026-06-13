@@ -60,22 +60,36 @@ router.post("/", async (req, res) => {
 		}
 		if (event.type === "tool_execution_end") {
 			let resultPreview: string | undefined;
+			let sources: Array<{ title: string; url: string; cite?: string; snippet?: string }> | undefined;
 			if (event.result && typeof event.result === "object") {
-				const content = (event.result as Record<string, unknown>).content;
+				const obj = event.result as Record<string, unknown>;
+				const content = obj.content;
 				if (Array.isArray(content) && content.length > 0) {
 					const first = content[0] as Record<string, unknown>;
-					resultPreview = typeof first.text === "string" ? first.text.slice(0, 500) : undefined;
+					if (typeof first.text === "string") resultPreview = first.text.slice(0, 500);
+				}
+				const details = obj.details;
+				if (details && typeof details === "object") {
+					const d = details as Record<string, unknown>;
+					if (event.toolName === "search_web" && Array.isArray(d.sources)) {
+						sources = d.sources as Array<{ title: string; url: string; cite?: string; snippet?: string }>;
+					} else if (event.toolName === "read_url" && d.source && typeof d.source === "object") {
+						const s = d.source as { url: string; title: string };
+						sources = [{ title: s.title, url: s.url, snippet: "" }];
+					}
 				}
 			}
 			if (!resultPreview && typeof event.result === "string") {
 				resultPreview = event.result.slice(0, 500);
 			}
-			send({
+			const payload: Record<string, unknown> = {
 				type: "tool_end",
 				name: event.toolName,
 				error: event.isError,
 				result: resultPreview,
-			});
+			};
+			if (sources) payload.sources = sources;
+			send(payload);
 		}
 	});
 

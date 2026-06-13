@@ -44,7 +44,7 @@ const readUrlTool = defineTool({
 			if (isBlacklisted(params.url)) {
 				return {
 					content: [{ type: "text", text: "域名已被标记为不可访问，建议换来源。" }],
-					details: {},
+					details: { source: { url: params.url, title: params.url } },
 					isError: true,
 				};
 			}
@@ -55,7 +55,7 @@ const readUrlTool = defineTool({
 			if (!response.ok) {
 				return {
 					content: [{ type: "text", text: `页面返回错误 ${response.status}` }],
-					details: {},
+					details: { source: { url: params.url, title: params.url } },
 					isError: true,
 				};
 			}
@@ -69,15 +69,20 @@ const readUrlTool = defineTool({
 			if (text.length < 50 || chars < text.length * 0.3) {
 				return {
 					content: [{ type: "text", text: "页面内容无法正常读取" }],
-					details: {},
+					details: { source: { url: params.url, title: params.url } },
 					isError: true,
 				};
 			}
-			return { content: [{ type: "text", text: text.slice(0, 8000) }], details: {} };
+			const titleMatch = text.match(/^([^\n]{1,200})/);
+			const title = titleMatch ? titleMatch[1].trim() : params.url;
+			return {
+				content: [{ type: "text", text: text.slice(0, 8000) }],
+				details: { source: { url: params.url, title } },
+			};
 		} catch (error) {
 			return {
 				content: [{ type: "text", text: `读取失败: ${error}` }],
-				details: {},
+				details: { source: { url: params.url, title: params.url } },
 				isError: true,
 			};
 		}
@@ -101,9 +106,11 @@ function filterResults(results: SearchResult[]): { filtered: SearchResult[]; whi
 
 function formatResults(query: string, results: SearchResult[], whitelistCount: number): string {
 	if (results.length === 0) return `未找到关于"${query}"的搜索结果。`;
-	let text = `搜索结果（${query}）：\n\n${results
-		.map((r, i) => `${i + 1}. ${r.title}\n   ${r.cite ?? r.url}\n   ${r.snippet}`)
-		.join("\n\n")}`;
+	const lines = results.map((r, i) => {
+		const n = i + 1;
+		return `[${n}] ${r.title}\n    链接: ${r.url}\n    摘要: ${r.snippet}`;
+	});
+	let text = `搜索结果（${query}）：\n\n${lines.join("\n\n")}`;
 	if (whitelistCount > 0) text += `\n\n（其中 ${whitelistCount} 条来自可信新闻源）`;
 	return text;
 }
@@ -118,7 +125,12 @@ const searchWebTool = defineTool({
 2. 用名词短语作关键词，不要用问句
 3. 需要多个方面时每个方面搜一次，不要一个搜索想覆盖所有
 4. 效果不好就换关键词或换目标网站再试
-5. 新闻时事类用搜索摘要回答即可，不需要 read_url 查看原文`,
+5. 新闻时事类用搜索摘要回答即可，不需要 read_url 查看原文
+
+引用规则（强制）：
+- 工具返回的每条结果都有编号 [1]、[2]…，回答中引用具体事实时必须用 [N] 标注对应编号
+- 不要自己编造 URL、日期、人物、数字；只写搜索结果里有的事实
+- 如果多次搜索都查不到，就直接说"没有找到可靠来源"，不要凑内容`,
 	parameters: Type.Object({
 		query: Type.String({ description: "搜索关键词" }),
 	}),
@@ -128,12 +140,12 @@ const searchWebTool = defineTool({
 			const { filtered, whitelistCount } = filterResults(rawResults);
 			return {
 				content: [{ type: "text", text: formatResults(params.query, filtered, whitelistCount) }],
-				details: {},
+				details: { sources: filtered },
 			};
 		} catch (error) {
 			return {
 				content: [{ type: "text", text: `搜索失败: ${error}` }],
-				details: {},
+				details: { sources: [] as SearchResult[] },
 				isError: true,
 			};
 		}

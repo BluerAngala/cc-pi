@@ -7,9 +7,28 @@ import { Composer } from "./Composer";
 import { MessageItem } from "./MessageItem";
 import { ToolPanel } from "./ToolPanel";
 import { WelcomeScreen } from "./WelcomeScreen";
-import { DebugPanel } from "./DebugPanel";
+import { DebugPanel, type DebugMode } from "./DebugPanel";
 import { Sidebar } from "./Sidebar";
 import { resetBuffer } from "../lib/logger";
+
+const DEBUG_MODE_KEY = "pi-web:debug-mode";
+
+function loadDebugMode(): DebugMode {
+	try {
+		const stored = localStorage.getItem(DEBUG_MODE_KEY);
+		return stored === "floating" ? "floating" : "sidebar";
+	} catch {
+		return "sidebar";
+	}
+}
+
+function saveDebugMode(mode: DebugMode): void {
+	try {
+		localStorage.setItem(DEBUG_MODE_KEY, mode);
+	} catch {
+		/* noop */
+	}
+}
 
 export function Chat() {
 	const {
@@ -26,6 +45,7 @@ export function Chat() {
 	const [sidebarOpen, setSidebarOpen] = useState(true);
 	const [thinking, setThinking] = useState(false);
 	const [debugVisible, setDebugVisible] = useState(false);
+	const [debugMode, setDebugMode] = useState<DebugMode>(loadDebugMode);
 
 	const { messages, sendMessage, stop, isLoading, reset } = useChat({
 		conversationId: currentId,
@@ -64,6 +84,11 @@ export function Chat() {
 		await create();
 		reset();
 	}, [create, reset]);
+
+	const updateDebugMode = useCallback((mode: DebugMode) => {
+		setDebugMode(mode);
+		saveDebugMode(mode);
+	}, []);
 
 	useEffect(() => {
 		const el = scrollRef.current;
@@ -150,14 +175,17 @@ export function Chat() {
 						<button
 							type="button"
 							onClick={() => setDebugVisible((v) => !v)}
-							className="rounded-lg px-2 py-1 text-xs transition-colors duration-[var(--duration-fast)]"
+							className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors duration-[var(--duration-fast)]"
 							style={{
 								color: debugVisible ? "var(--color-accent)" : "var(--color-muted-dim)",
 								background: debugVisible ? "var(--color-accent-muted)" : undefined,
 							}}
 							title="调试日志"
 						>
-							🛠
+							<svg className="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+								<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+							</svg>
+							调试
 						</button>
 						<button
 							type="button"
@@ -223,13 +251,15 @@ export function Chat() {
 				</div>
 
 				<Composer onSend={handleSend} onStop={stop} isLoading={isLoading} />
-
-				<DebugPanel
-					visible={debugVisible}
-					onClear={resetBuffer}
-					onToggle={() => setDebugVisible(false)}
-				/>
 			</div>
+
+			<DebugPanel
+				visible={debugVisible}
+				mode={debugMode}
+				onClear={resetBuffer}
+				onClose={() => setDebugVisible(false)}
+				onModeChange={updateDebugMode}
+			/>
 
 			{sidebarWidth === 0 && null}
 		</div>

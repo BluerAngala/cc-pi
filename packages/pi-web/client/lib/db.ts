@@ -1,4 +1,4 @@
-import type { Message } from "./format.ts";
+import type { Message, Source } from "./format.ts";
 
 const DB_NAME = "pi-web";
 const DB_VERSION = 1;
@@ -22,6 +22,7 @@ export interface StoredMessage {
 	thinkingMs?: number;
 	streamingMs?: number;
 	toolCalls?: { label: string; durationMs: number }[];
+	sources?: Source[];
 }
 
 let dbPromise: Promise<IDBDatabase> | null = null;
@@ -146,6 +147,7 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
 				if (m.thinkingMs !== undefined) result.thinkingMs = m.thinkingMs;
 				if (m.streamingMs !== undefined) result.streamingMs = m.streamingMs;
 				if (m.toolCalls) result.toolCalls = m.toolCalls;
+				if (m.sources) result.sources = m.sources;
 				return result;
 			}),
 		);
@@ -169,6 +171,7 @@ export async function appendMessage(
 	if (message.thinkingMs !== undefined) stored.thinkingMs = message.thinkingMs;
 	if (message.streamingMs !== undefined) stored.streamingMs = message.streamingMs;
 	if (message.toolCalls) stored.toolCalls = message.toolCalls;
+	if (message.sources) stored.sources = message.sources;
 	await tx(db, STORE_MESSAGES, "readwrite", (t) => {
 		t.objectStore(STORE_MESSAGES).put(stored);
 	});
